@@ -28,12 +28,13 @@ MAX_GRID_ANGLE_DEVIATION_DEGREES = 5
 MIN_GRID_CELL_COUNT = 10
 
 MACBETH_BGR = [
-    (67, 81, 115),      (129, 149, 196),    (157, 123, 93),     (65, 108, 90),      (176, 129, 130),    (171, 191, 99),
-    (45, 123, 220),     (168, 92, 72),      (98, 84, 195),      (105, 59, 91),      (62, 189, 160),     (41, 161, 229),
-    (147, 62, 43),      (72, 149, 71),      (56, 48, 176),      (22, 200, 238),     (150, 84, 188),     (166, 136, 0),
-    (240, 245, 245),    (201, 201, 200),    (161, 161, 160),    (121, 121, 120),    (85, 84, 83),       (50, 50, 50),
+    (67,   81, 115),  (129, 149, 196),  (157, 123,  93),  (65,  108,  90),  (176, 129, 130),  (171, 191,  99),
+    (45,  123, 220),  (168,  92,  72),  ( 98,  84, 195),  (105,  59,  91),  ( 62, 189, 160),  ( 41, 161, 229),
+    (147,  62,  43),  (72,  149,  71),  ( 56,  48, 176),  (22,  200, 238),  (150,  84, 188),  (166, 136,   0),
+    (240, 245, 245),  (201, 201, 200),  (161, 161, 160),  (121, 121, 120),  ( 85,  84,  83),  ( 50, 50,   50),
 ]
 MACBETH_BGR = np.array(MACBETH_BGR).reshape(4, 6, 3).astype(np.uint8)
+MACBETH_LAB = cv2.cvtColor(MACBETH_BGR, cv2.COLOR_BGR2LAB)
 
 RotatedRect = namedtuple("RotatedRect", "center size angle")
 ColorBox = namedtuple("ColorBox", "index rect")
@@ -241,9 +242,7 @@ def findBestGridCells(squares, grids, canvas):
     """ Find best grid cells that has colors matching ColorChecker samples
     """
 
-    macbethLAB = cv2.cvtColor(MACBETH_BGR, cv2.COLOR_BGR2LAB).astype(int)
-
-    h, w = MACBETH_BGR.shape[:2]
+    h, w = MACBETH_LAB.shape[:2]
     boxPoints = np.array([0, 0, w, 0, w, h, 0, h]).reshape(4, 2).astype(np.float32)
     boxCells = np.array(list(np.ndindex(h, w)), dtype=np.float32)[:, ::-1] + 0.5
 
@@ -267,8 +266,8 @@ def findBestGridCells(squares, grids, canvas):
 
             # find sum of distances from color cells samples to expected color
             bgr = image[cells[:, 1], cells[:, 0]].reshape(-1, 1, 3)
-            lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).astype(int).reshape(macbethLAB.shape)
-            dist = np.sqrt(np.sum((macbethLAB - lab) ** 2, axis=2))
+            lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).astype(int).reshape(MACBETH_LAB.shape)
+            dist = np.sqrt(np.sum((MACBETH_LAB.astype(int) - lab) ** 2, axis=2))
             cost = np.sum(dist)
 
             if cost < best.cost:
