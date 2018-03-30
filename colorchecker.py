@@ -119,25 +119,26 @@ def findGrids(squares, canvas=None):
         if canvas is not None:
             cv2.line(canvas, tuple(map(int, b1.center)), tuple(map(int, b2.center)), 255, lineType=cv2.LINE_AA)
 
-    # find connected components from unnormalized Laplacian matrix
+    # find connected components using spectral clustering algorithm
+
+    # calculate eigenvalues/eigenvectors of Laplacian matrix
     degree = np.diag(cv2.reduce(adjacency, 0, cv2.REDUCE_SUM).flatten())
     laplacian = degree - adjacency
     retval, eigenVal, eigenVec = cv2.eigen(laplacian)
     assert retval
 
-    grids = []
-    for i, value in enumerate(eigenVec[-1]):
-        found = False
-        for gridset, gridvalue in grids:
-            A, B = min(value, gridvalue), max(value, gridvalue)
-            if (abs(A / B - 1) if B != 0 else 1) < 0.05:
-                gridset.add(i)
-                found = True
-                break
-        if not found:
-            grids.append((set([i]), value))
+    # detect the number of clusters
+    clustersNum = sum(eigenVal.flatten() < 1e-7)
+    assert clustersNum >= 1
 
-    grids = [grid[0] for grid in grids if len(grid[0]) >= MIN_GRID_CELL_COUNT]
+    # apply k-means clustering to find all connected components
+    U = eigenVec[-clustersNum:].T.astype(np.float32)
+    criteria = (cv2.TERM_CRITERIA_MAX_ITER, 10, 0)
+    _, labels, _ = cv2.kmeans(U, clustersNum, None, criteria, attempts=1, flags=cv2.KMEANS_PP_CENTERS)
+
+    labels = labels.flatten()
+    grids = [np.argwhere(labels == i).flatten().tolist() for i in range(clustersNum)]
+    grids = list(filter(lambda value: len(value) >= MIN_GRID_CELL_COUNT, grids))
     return grids
 
 ########################################################################################################################
