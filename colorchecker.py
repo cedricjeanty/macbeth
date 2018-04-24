@@ -41,20 +41,6 @@ ColorBox = namedtuple("ColorBox", "index rect")
 
 ########################################################################################################################
 
-# setup logs
-logging.getLogger().setLevel(logging.DEBUG)
-cout = logging.StreamHandler(sys.stdout)
-cout.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-logging.getLogger().addHandler(cout)
-
-# read command line arguments
-args = argparse.ArgumentParser(description="find the Macbeth ColorChecker chart in an image")
-args.add_argument("image", help="input image")
-args.add_argument("--show-debug", action="store_true", help="show debug window")
-params = vars(args.parse_args())
-
-########################################################################################################################
-
 def findSquares(msers, canvas=None):
     """ Find squares within MSERs using simple square tests
     """
@@ -296,21 +282,24 @@ def findBestGridCells(squares, grids, canvas):
 
 ########################################################################################################################
 
-try:
-    logging.info("read image from {}".format(params["image"]))
+def setup_opts():
 
-    image = cv2.imread(params["image"], cv2.IMREAD_COLOR)
-    if image is None:
-        raise RuntimeError("failed to read {}".format(params["image"]))
+    # read command line arguments
+    opts = argparse.ArgumentParser(description="find the Macbeth ColorChecker chart in an image")
+    opts.add_argument("image", help="input image")
+    opts.add_argument("--show-debug", action="store_true", help="show debug window")
 
-    logging.info("image is {0[1]}x{0[0]}".format(image.shape))
+    return opts
+
+
+def find_macbeth(image):
+
     if image.shape[2] != 3:
         raise RuntimeError("image is expected to have three channels")
 
     grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    showDebug = params["show_debug"]
-    canvas = np.zeros(image.shape[:2], dtype=np.uint8) if showDebug else None
+    canvas = np.zeros(image.shape[:2], dtype=np.uint8)
 
     mser = cv2.MSER_create(**MSER_PARAMS)
     regions, _ = mser.detectRegions(grayscale)
@@ -322,8 +311,36 @@ try:
     grids = findGrids(squares, canvas)
     logging.info("found {} grid{}".format(len(grids), "" if len(grids) == 1 else "s"))
 
-    if grids:
-        cells = findBestGridCells(squares, grids, canvas)
+    if not grids:
+        raise Exception("No grids found")
+    
+    cells = findBestGridCells(squares, grids, canvas)
+
+    return cells, canvas
+
+
+if __name__ == "__main__":
+    # setup logs
+    logging.getLogger().setLevel(logging.DEBUG)
+    cout = logging.StreamHandler(sys.stdout)
+    cout.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logging.getLogger().addHandler(cout)
+
+    opts = setup_opts()
+    params = vars(opts.parse_args())
+
+    showDebug = params["show_debug"]
+
+    logging.info("read image from {}".format(params["image"]))
+
+    image = cv2.imread(params["image"], cv2.IMREAD_COLOR)
+    if image is None:
+        raise RuntimeError("failed to read {}".format(params["image"]))
+
+    logging.info("image is {0[1]}x{0[0]}".format(image.shape))
+
+    try:
+        cells, canvas = find_macbeth(image)
 
         if showDebug:
             temp = image.copy()
@@ -334,17 +351,17 @@ try:
             cv2.circle(temp, tuple(cells[0]), 10, (255, 255, 255))
             cv2.imshow("image", temp)
 
-    logging.info("done")
+        logging.info("done")
 
-    if showDebug:
-        cv2.imshow("debug", canvas)
-        cv2.waitKey()
+        if showDebug:
+            cv2.imshow("debug", canvas)
+            cv2.waitKey()
 
-except SystemExit: pass
+    except SystemExit: pass
 
-except BaseException as e:
-    logging.error(e)
-    print("")
-    traceback.print_exc()
+    except BaseException as e:
+        logging.error(e)
+        print("")
+        traceback.print_exc()
 
 ########################################################################################################################
