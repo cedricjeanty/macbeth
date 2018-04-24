@@ -224,7 +224,7 @@ def restoreGridContour(squares, grid, canvas=None):
 
 ########################################################################################################################
 
-def findBestGridCells(squares, grids, canvas):
+def findBestGridCells(image, squares, grids, canvas):
     """ Find best grid cells that has colors matching ColorChecker samples
     """
 
@@ -291,6 +291,16 @@ def setup_opts():
 
     return opts
 
+def pixel_color(image, pixel, sample_region=3):
+    min_x = max(pixel[0] - sample_region, 0)
+    max_x = min(pixel[0] + sample_region, image.shape[1])
+    min_y = max(pixel[1] - sample_region, 0)
+    max_y = min(pixel[1] + sample_region, image.shape[0])
+    pixels = image[min_x:max_x, min_y:max_y, :]
+    pixels = np.reshape(pixels, (-1,3))
+    color = np.median(pixels, axis=0)
+    return color
+
 
 def find_macbeth(image):
 
@@ -314,7 +324,7 @@ def find_macbeth(image):
     if not grids:
         raise Exception("No grids found")
     
-    cells = findBestGridCells(squares, grids, canvas)
+    cells = findBestGridCells(image, squares, grids, canvas)
 
     return cells, canvas
 
